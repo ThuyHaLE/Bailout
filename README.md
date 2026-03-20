@@ -43,9 +43,15 @@ What expert planners do intuitively:
 
 ## ⚙️ How It Works
 
-### Layer A – Business Logic
+### Layer A – Recommendation Engine (Business Logic)
 
-👉 This is where decision patterns are reconstructed.
+Reconstructs machine-mold-job decision patterns from historical production data. 
+
+It builds a **weighted capacity matrix** per (machine, mold) pair — blending spec-based defaults with actual run history, where older records contribute less.
+
+From this, it derives a **priority ranking** of machines per mold, then matches pending orders to the best-fit machine based on mold compatibility, delivery deadline, throughput, and backlog size.
+
+👉 More details in [recommendation_engine](docs/recommendation_engine.md)
 
 ---
 
