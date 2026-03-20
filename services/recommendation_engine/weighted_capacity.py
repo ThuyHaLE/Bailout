@@ -3,6 +3,8 @@
 import math
 import pandas as pd
 from collections import defaultdict
+from services.recommendation_engine.default_capacity import compute_default_capacity_matrix
+from services.recommendation_engine.historical_capacity import compute_estimated_capacity_matrix
 
 BINS = [
     {"label": "0-30d",   "days": 30},
@@ -20,23 +22,24 @@ BIN_COUNT_WEIGHT = {
     ">180d":   0.05,
 }
 
-
 def compute_weighted_capacity_matrix(
-    default_capacity_matrix: pd.DataFrame,
-    estimated_capacity_matrix: pd.DataFrame,
-    filtered_df: pd.DataFrame,
+    machine_spec_df: pd.DataFrame, 
+    mold_spec_df: pd.DataFrame,
+    production_df: pd.DataFrame,
     midpoint: float = 8,
     steepness: float = 0.4,
     w1_floor: float = 0.3,
 ) -> pd.DataFrame:
     """
-    Combine default và estimated capacity weighted based on time decay.
+    Combine default and estimated capacity weighted based on time decay.
     - No historical data → 100% default (w1 = 1, w2 = 0)
     - Not compatible (tonnage) → NaN
     """
+    default_capacity_matrix = compute_default_capacity_matrix(machine_spec_df, mold_spec_df)
+    estimated_capacity_matrix, filtered_df = compute_estimated_capacity_matrix(production_df)
+
     logs = filtered_df[['date', 'machine_id', 'mold_id']].to_dict(orient='records')
     anchor = max(l['date'] for l in logs)
-
     weighted_capacity_matrix = default_capacity_matrix.copy()
 
     for machine_id in default_capacity_matrix.index:
