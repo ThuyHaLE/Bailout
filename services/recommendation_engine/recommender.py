@@ -56,6 +56,7 @@ def recommend_for_machine(
 def recommend_for_machines(
     machine_ids: list,
     orders_df: pd.DataFrame,
+    production_df: pd.DataFrame,
     mold_spec_df: pd.DataFrame,
     item_spec_df: pd.DataFrame,
     weighted_capacity_matrix: pd.DataFrame,
@@ -64,10 +65,24 @@ def recommend_for_machines(
 ) -> dict:
     """Assign orders to multiple machines, avoiding duplicates."""
 
+    # Find all molds active in lastest date-shift → remove from matrix
+    latest_date  = production_df['date'].max()
+    latest_shift = production_df[production_df['date'] == latest_date]['shift'].max()
+
+    active_molds = production_df[
+        (production_df['date']  == latest_date) &
+        (production_df['shift'] == latest_shift)
+    ]['mold_id'].dropna().unique()
+
+    available_matrix = weighted_capacity_matrix.drop(
+        columns=[m for m in active_molds if m in weighted_capacity_matrix.columns]
+    )
+
+    # Build priority from available matrix (not include active molds)
+    priority_matrix = build_priority_matrix(available_matrix)
+
     assigned_items = set()
     results = {}
-
-    priority_matrix = build_priority_matrix(weighted_capacity_matrix)
 
     machine_order = sorted(
         machine_ids,
@@ -87,7 +102,7 @@ def recommend_for_machines(
             orders_df=remaining_orders,
             mold_spec_df=mold_spec_df,
             item_spec_df=item_spec_df,
-            weighted_capacity_matrix=weighted_capacity_matrix,
+            weighted_capacity_matrix=available_matrix,
             priority_matrix=priority_matrix,
             criteria=criteria,
         )
