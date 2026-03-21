@@ -1,19 +1,28 @@
+// control_panel/src/api/mock.js
+
 // ╔══════════════════════════════════════════════════════════════════════════════
 // ║  MOCK DATA
 // ╚══════════════════════════════════════════════════════════════════════════════
 export const MOCK_MACHINES = [
-  { machine_id: "MD50S-000", machine_name: "MD50S", tonnage: 50,  model: "MD50S", status: "idle" },
-  { machine_id: "MD50S-001", machine_name: "MD50S", tonnage: 50,  model: "MD50S", status: "running" },
-  { machine_id: "EC50ST-000",machine_name: "EC50ST",tonnage: 50,  model: "EC50ST",status: "idle" },
-  { machine_id: "HN-80B-000",machine_name: "HN-80B",tonnage: 80,  model: "HN-80B",status: "maintenance" },
-  { machine_id: "HN-120-000",machine_name: "HN-120",tonnage: 120, model: "HN-120",status: "running" },
-  { machine_id: "KM-200-000",machine_name: "KM-200",tonnage: 200, model: "KM-200",status: "idle" },
+  { machine_id: "MD50S-000", machine_name: "MD50S", tonnage: 50,  model: "Niigata"},
+  { machine_id: "MD50S-001", machine_name: "MD50S", tonnage: 50,  model: "Niigata"},
+  { machine_id: "EC50ST-000",machine_name: "EC50ST",tonnage: 50,  model: "Toshiba"},
+  { machine_id: "J100ADS-000",machine_name: "J100ADS",tonnage: 100, model: "JSW"},
+  { machine_id: "J100ADS-001",machine_name: "J100ADS",tonnage: 100, model: "JSW"},
+  { machine_id: "MD100S-000", machine_name: "MD100S",tonnage: 100, model: "Niigata"},
+  { machine_id: "MD100S-001", machine_name: "MD100S",tonnage: 100, model: "Niigata"},
+  { machine_id: "MD130S-000", machine_name: "MD130S",tonnage: 130, model: "Niigata"},
+  { machine_id: "MD130S-001", machine_name: "MD130S",tonnage: 130, model: "Niigata"},
+  { machine_id: "CNS50-000",  machine_name: "CNS50", tonnage: 50,  model: "Niigata"},
+  { machine_id: "CNS50-001",  machine_name: "CNS50", tonnage: 50,  model: "Niigata"},
 ];
 
 export const MOCK_DB_ORDERS = [
-  { order_id: "PO-001", item_id: "A12", item_name: "CT-CAX-LOCK-BUTTON", quantity: 500,  received_date: "2026-03-01", etd: "2026-03-20", hours_to_etd: 18 },
-  { order_id: "PO-002", item_id: "B05", item_name: "CT-PS-SPACER",        quantity: 200,  received_date: "2026-03-05", etd: "2026-03-22", hours_to_etd: 42 },
-  { order_id: "PO-003", item_id: "C08", item_name: "CT-CAX-REEL",         quantity: 800,  received_date: "2026-03-10", etd: "2026-03-25", hours_to_etd: 90 },
+  {received_date: "2019-01-25", order_id: "IM1902119", etd: "2019-02-20", item_id: "24720326M", item_name: "CT-CAX-CARTRIDGE-BASE", quantity: 340000},
+  {received_date: "2019-01-25", order_id: "IM1902120", etd: "2019-02-20", item_id: "24720327M", item_name: "CT-CAX-BASE-COVER", quantity: 175000},
+  {received_date: "2019-01-25", order_id: "IM1902121", etd: "2019-02-20", item_id: "24720328M", item_name: "CT-CAX-REEL", quantity: 410000},
+  {received_date: "2019-01-25", order_id: "IM1902129", etd: "2019-02-20", item_id: "260501M",   item_name: "CT-PXN-HEAD-COVER-4.2MM", quantity: 55000},
+  {received_date: "2019-01-25", order_id: "IM1902134", etd: "2019-02-20", item_id: "281709M",   item_name: "CT-PS-SPACER", quantity: 30000},
 ];
 
 // ╔══════════════════════════════════════════════════════════════════════════════
@@ -70,6 +79,9 @@ function buildMockResult(machineIds, source) {
 export const mockApi = {
   machines: () =>
     delay(400).then(() => MOCK_MACHINES),
+
+  pendingOrders: () =>                                        
+    delay(300).then(() => MOCK_DB_ORDERS),
 
   recommend: (machineIds, file, useDb) =>
     delay(2400).then(() =>

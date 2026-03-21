@@ -1,15 +1,11 @@
+// control_panel/src/BailoutDemo.jsx
+
 import { useState, useRef, useEffect } from "react";
 import { api, USE_MOCK }  from "./api/client.js";
-import { MOCK_DB_ORDERS } from "./api/mock.js";
 
 // ╔══════════════════════════════════════════════════════════════════════════════
 // ║  HELPERS
 // ╚══════════════════════════════════════════════════════════════════════════════
-const STATUS_META = {
-  idle:        { dot: "#1D9E75", text: "idle" },
-  running:     { dot: "#BA7517", text: "running" },
-  maintenance: { dot: "#993C1D", text: "maint." },
-};
 
 const urgencyColor = u => ({ high: "#1D9E75", medium: "#BA7517", low: "#993C1D" }[u] ?? "#888");
 const urgencyBg    = u => ({ high: "#0B3D2A", medium: "#2A1E08", low: "#2A0E08" }[u] ?? "#1A1A18");
@@ -31,6 +27,8 @@ export default function BailoutDemo() {
   const [selectedMachines, setSelectedMachines] = useState([]);
   const [orderFile, setOrderFile]               = useState(null);
   const [useDbOrders, setUseDbOrders]           = useState(false);
+  const [dbOrders, setDbOrders]                 = useState([]);
+  const [dbOrdersLoading, setDbOrdersLoading]   = useState(false);
   const [activeTab, setActiveTab]               = useState("input");
   const [loading, setLoading]                   = useState(false);
   const [stepIdx, setStepIdx]                   = useState(0);
@@ -61,6 +59,21 @@ export default function BailoutDemo() {
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (f) { setOrderFile(f); setUseDbOrders(false); }
+  };
+
+  const handleSelectDb = async () => {
+    setUseDbOrders(true);
+    setOrderFile(null);
+    if (dbOrders.length > 0) return;   // đã fetch rồi thì thôi
+    setDbOrdersLoading(true);
+    try {
+      const data = await api.pendingOrders();
+      setDbOrders(data);
+    } catch (err) {
+      setError(`Không tải được orders: ${err.message}`);
+    } finally {
+      setDbOrdersLoading(false);
+    }
   };
 
   const handleSubmit = async () => {
@@ -160,15 +173,13 @@ export default function BailoutDemo() {
               <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:5 }}>
                 {machines.map(m => {
                   const sel = !!selectedMachines.find(s => s.machine_id === m.machine_id);
-                  const st  = STATUS_META[m.status] ?? STATUS_META.idle;
                   return (
                     <button key={m.machine_id} className={`mach${sel ? " sel" : ""}`} onClick={() => toggleMachine(m)}>
-                      <div style={{ position:"absolute", top:6, left:7, width:5, height:5, borderRadius:"50%", background:sel ? "#1D9E75" : st.dot, opacity:sel ? 1 : .55 }}/>
+                      <div style={{ position:"absolute", top:6, left:7, width:5, height:5, borderRadius:"50%", background:sel ? "#1D9E75" : "#333", opacity:sel ? 1 : .55 }}/>
                       {sel && <div style={{ position:"absolute", top:4, right:6, fontSize:8, color:"#1D9E75" }}>✓</div>}
                       <div style={{ fontWeight:500, fontSize:12, marginBottom:1, marginTop:1 }}>{m.machine_name}</div>
                       <div style={{ fontSize:8, opacity:.55 }}>{m.tonnage}T</div>
                       <div style={{ fontSize:8, opacity:.35 }}>{m.model}</div>
-                      <div style={{ fontSize:8, marginTop:3, color:sel ? "#5DCAA5" : st.dot, opacity:.75 }}>{st.text}</div>
                     </button>
                   );
                 })}
@@ -197,11 +208,12 @@ export default function BailoutDemo() {
           <div>
             <div style={{ fontSize:9, color:"#444", letterSpacing:".1em", textTransform:"uppercase", marginBottom:9 }}>2 — Nguồn PO</div>
             <div style={{ display:"flex", gap:5, marginBottom:9 }}>
-              <button className={`bail-btn${!useDbOrders ? " on" : ""}`} onClick={() => setUseDbOrders(false)}>Upload file</button>
-              <button className={`bail-btn${useDbOrders  ? " on" : ""}`} onClick={() => { setUseDbOrders(true); setOrderFile(null); }}>Từ DB</button>
+              <button className={`bail-btn${!useDbOrders ? " on" : ""}`} onClick={() => { setUseDbOrders(false); }}>Upload file</button>
+              <button className={`bail-btn${useDbOrders  ? " on" : ""}`} onClick={handleSelectDb}>Từ DB</button>
             </div>
 
             {!useDbOrders ? (
+              // ── Upload ──
               <div className="drop" onClick={() => fileRef.current.click()}>
                 <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display:"none" }} onChange={handleFile}/>
                 {orderFile ? (
@@ -218,18 +230,22 @@ export default function BailoutDemo() {
                 )}
               </div>
             ) : (
+              // ── DB preview (dynamic, từ api.pendingOrders) ──
               <div className="fu" style={{ padding:"10px", background:"#0D0D0C", border:"1px solid #1C1C1A", borderRadius:6 }}>
                 <div style={{ fontSize:9, color:"#444", marginBottom:6 }}>
-                  DB preview — {MOCK_DB_ORDERS.length} PO đang chờ {USE_MOCK && <span style={{ color:"#2A2A28" }}>(mock)</span>}
+                  {dbOrdersLoading
+                    ? <span className="pulse">Đang tải...</span>
+                    : `DB preview — ${dbOrders.length} PO đang chờ${USE_MOCK ? " (mock)" : ""}`
+                  }
                 </div>
-                {MOCK_DB_ORDERS.map(({ order_id, item_id, item_name, quantity, hours_to_etd }) => (
-                  <div key={order_id} style={{ padding:"5px 0", borderBottom:"1px solid #181816" }}>
+                {!dbOrdersLoading && dbOrders.map(({ order_id, item_id, item_name, quantity, etd }) => (
+                  <div key={order_id ?? item_id} style={{ padding:"5px 0", borderBottom:"1px solid #181816" }}>
                     <div style={{ display:"flex", justifyContent:"space-between", marginBottom:2 }}>
                       <span style={{ color:"#9FE1CB", fontSize:10 }}>{order_id}</span>
-                      <span style={{ fontSize:9, color: hours_to_etd < 24 ? "#BA7517" : "#2C2C2A" }}>ETD {hours_to_etd}h</span>
+                      <span style={{ fontSize:9, color:"#2C2C2A" }}>ETD {etd}</span>
                     </div>
                     <div style={{ display:"flex", justifyContent:"space-between" }}>
-                      <span style={{ color:"#484846", fontSize:9 }}>{item_id} · {item_name}</span>
+                      <span style={{ color:"#484846", fontSize:9 }}>{item_id}{item_name ? ` · ${item_name}` : ""}</span>
                       <span style={{ color:"#3A3A38", fontSize:9 }}>{quantity} pcs</span>
                     </div>
                   </div>

@@ -1,3 +1,5 @@
+// control_panel/src/api/client.js
+
 import { mockApi } from "./mock.js";
 
 // ╔══════════════════════════════════════════════════════════════════════════════
@@ -18,13 +20,17 @@ const realApi = {
       return r.json();
     }),
 
+  pendingOrders: () =>                                        // ← thêm
+    fetch(`${API_BASE}/orders/pending`).then(r => {
+      if (!r.ok) throw new Error(`GET /orders/pending failed: ${r.status}`);
+      return r.json();
+    }),
+
   recommend: (machineIds, file, useDb) => {
     const fd = new FormData();
-    // Append từng id riêng — FastAPI nhận List[str]
     machineIds.forEach(id => fd.append("machine_ids", id));
     if (file) fd.append("file",   file);
     else      fd.append("use_db", "true");
-    // KHÔNG set Content-Type — browser tự tính multipart boundary
     return fetch(`${API_BASE}/recommend`, { method: "POST", body: fd })
       .then(r => {
         if (!r.ok) return r.json().then(e => { throw new Error(e.detail || `${r.status}`); });
