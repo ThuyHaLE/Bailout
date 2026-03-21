@@ -7,7 +7,7 @@ from typing import List, Optional
 from services.recommendation_engine import recommend_for_machines
 from services.recommendation_engine.weighted_capacity import compute_weighted_capacity_matrix
 from services.order_tracking import track_orders, extract_pending_orders
-from services.llm_client.recommendation import generate_recommendation_openai
+from services.llm_client.recommendation import generate_recommendation_openai, empty_response
 
 
 def _load_data() -> dict:
@@ -96,6 +96,9 @@ class BailoutOrchestrator:
 
         # ── 6. Generate explanation ───────────────────────────────────────────
         valid_results = {k: v for k, v in results.items() if v is not None and not v.empty}
+
+        if not valid_results:
+            return empty_response(system_notices)
 
         output = generate_recommendation_openai(
             results=valid_results,

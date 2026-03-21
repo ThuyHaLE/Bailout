@@ -15,6 +15,20 @@ OPENAI_PRICING = {
     "o3-mini":     {"input": 1.10,  "output": 4.40},
 }
 
+def empty_response(system_notices: list = []) -> dict:
+    """
+    Return a valid response shape when no recommendations are available.
+    Skips LLM call entirely.
+    """
+    return {
+        "machines":       [],
+        "warnings":       [],
+        "system_notices": system_notices,
+        "summary":        "No recommendations could be generated for the selected machines and orders.",
+        "validation":     {"passed": True, "checks": []},
+        "usage":          None,
+    }
+
 def _compute_cost(model: str, 
                   input_tokens: int, 
                   output_tokens: int, 
