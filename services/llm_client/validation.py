@@ -1,6 +1,6 @@
 # services/llm_client/validation.py
 import pandas as pd
-from services.llm_client.recommendation import empty_response
+from services.llm_client.schema import empty_response
 
 def validate(
     llm_output: dict,

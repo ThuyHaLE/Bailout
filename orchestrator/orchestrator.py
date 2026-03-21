@@ -7,8 +7,8 @@ from typing import List, Optional
 from services.recommendation_engine import recommend_for_machines
 from services.recommendation_engine.weighted_capacity import compute_weighted_capacity_matrix
 from services.order_tracking import track_orders, extract_pending_orders
-from services.llm_client.recommendation import generate_recommendation_openai, empty_response
-
+from services.llm_client.recommendation import generate_recommendation_openai
+from services.llm_client.schema import empty_response
 
 def _load_data() -> dict:
     return {
