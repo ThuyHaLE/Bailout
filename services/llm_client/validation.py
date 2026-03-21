@@ -1,5 +1,6 @@
 # services/llm_client/validation.py
 import pandas as pd
+from services.llm_client.recommendation import empty_response
 
 def validate(
     llm_output: dict,
@@ -139,7 +140,7 @@ def validate(
     return {"passed": passed, "checks": checks}
 
 
-def fallback(results: dict, machine_spec_df: pd.DataFrame) -> dict:
+def fallback(results: dict, machine_spec_df: pd.DataFrame, system_notices: list = []) -> dict:
     machines = []
     for machine_id, rec_df in results.items():
         machine_name = machine_spec_df[
@@ -161,7 +162,8 @@ def fallback(results: dict, machine_spec_df: pd.DataFrame) -> dict:
         })
 
     return {
-        "machines": machines,
+        **empty_response(system_notices),              # ← base shape
+        "machines": machines,                          # ← override with actual machines
         "warnings": ["LLM response could not be parsed — showing system recommendation only."],
         "summary":  "System could not generate explanation. Results below are computed directly by the system.",
     }
