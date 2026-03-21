@@ -59,25 +59,25 @@ class BailoutOrchestrator:
         db_orders      = extract_pending_orders(order_tracking)
 
         # ── 4. Resolve orders + fallback logic ────────────────────────────────
-        fallback_machines = []   # track máy nào đã fallback sang DB
+        fallback_machines = []   # track machines that need fallback to DB
 
         if file:
             uploaded_orders = await self._parse_file(file)
             results = _run_recommend(machine_ids, uploaded_orders, db, weighted_capacity_matrix)
 
-            # Máy nào không có gợi ý từ file → fallback sang DB
+            # Machines that don't have recommendations from the file → fallback to DB
             no_match = [m for m in machine_ids if m not in results]
             if no_match:
                 db_results = _run_recommend(no_match, db_orders, db, weighted_capacity_matrix)
                 results.update(db_results)
-                fallback_machines = [m for m in no_match if m in db_results]  # chỉ những máy DB tìm được
+                fallback_machines = [m for m in no_match if m in db_results]  # these machines had no match in the file but got a match from the DB
 
         else:
             results = _run_recommend(machine_ids, db_orders, db, weighted_capacity_matrix)
 
         # ── 5. Build system notices ───────────────────────────────────────────
 
-        # Máy nào vẫn không có gợi ý dù đã fallback sang DB
+        # Machines that still don't have recommendations despite fallback to DB
 
         still_no_match = [m for m in machine_ids if m not in results]
         system_notices = []
@@ -102,7 +102,7 @@ class BailoutOrchestrator:
             order_tracking=order_tracking,
             machine_spec_df=db["machine_spec_df"],
             production_df=db["production_df"],
-            system_notices=system_notices,                            # ← truyền vào
+            system_notices=system_notices,
         )
 
         return output
