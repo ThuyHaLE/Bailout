@@ -119,7 +119,7 @@ w1     = 1 - w2
 | No historical records             | `w1 = 1, w2 = 0` (100% default) |
 | Incompatible tonnage              | `NaN`                            |
 
-**Input:** `default_capacity_matrix`, `estimated_capacity_matrix`, `filtered_df`
+**Input:** `machine_spec_df`, `mold_spec_df`, `production_df`
 **Output:** `weighted_capacity_matrix` — matrix (machine × mold)
 
 ---
@@ -174,8 +174,8 @@ Default: `["mold_rank", "etd", "capacity", "quantity"]`
 - `shifts_needed = ceil(quantity / capacity)`
 - `days_needed   = ceil(shifts_needed / shifts_per_day)`
 
-**Input:** `weighted_capacity_matrix`, `priority_matrix`, `orders_df`,
-`mold_spec_df`, `item_spec_df`
+**Input:** `machine_ids`, `orders_df`, `mold_spec_df`, `item_spec_df`, 
+`weighted_capacity_matrix`, `priority_matrix`
 **Output:** `dict[machine_id → DataFrame]`
 
 ---
@@ -184,30 +184,23 @@ Default: `["mold_rank", "etd", "capacity", "quantity"]`
 
 ```python
 from services.recommendation_engine import (
-    compute_default_capacity_matrix,
-    compute_estimated_capacity_matrix,
     compute_weighted_capacity_matrix,
     build_priority_matrix,
     recommend_for_machines,
 )
 
 # Build matrices
-default_capacity_matrix                    = compute_default_capacity_matrix(machine_spec_df, mold_spec_df)
-estimated_capacity_matrix, filtered_df    = compute_estimated_capacity_matrix(production_df)
-weighted_capacity_matrix                  = compute_weighted_capacity_matrix(
-                                                default_capacity_matrix,
-                                                estimated_capacity_matrix,
-                                                filtered_df
-                                            )
-priority_matrix                           = build_priority_matrix(weighted_capacity_matrix)
+weighted_capacity_matrix = compute_weighted_capacity_matrix(machine_spec_df, mold_spec_df, production_df)
+priority_matrix = build_priority_matrix(weighted_capacity_matrix)
 
 # Recommend
 results = recommend_for_machines(
     machine_ids=["MD50S-000", "MD50S-001"],
     orders_df=orders_df,
-    mold_spec_df=mold_spec_df,
+    mold_spec_df=mold_spec_df, 
     item_spec_df=item_spec_df,
     weighted_capacity_matrix=weighted_capacity_matrix,
+    priority_matrix=priority_matrix,
     criteria=["mold_rank", "etd", "capacity", "quantity"],
     shifts_per_day=3,
 )
