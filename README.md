@@ -3,6 +3,8 @@
 **Tagline:**
 *Turn historical production data into real-time decisions*
 
+🔗 **[Live Demo](https://ThuyHaLE.github.io/Bailout/)** — mock mode, no backend required
+
 ---
 
 ## 🧩 Problem statement
