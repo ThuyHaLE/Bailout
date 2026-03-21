@@ -20,6 +20,21 @@ def _load_data() -> dict:
     }
 
 
+def _run_recommend(machine_ids, orders_df, db, weighted_capacity_matrix) -> dict:
+    """Run recommend_for_machines and return only non-empty results."""
+    results = recommend_for_machines(
+        machine_ids=machine_ids,
+        orders_df=orders_df,
+        production_df=db["production_df"],
+        mold_spec_df=db["mold_spec_df"],
+        item_spec_df=db["item_spec_df"],
+        weighted_capacity_matrix=weighted_capacity_matrix,
+        criteria=["mold_rank", "etd", "capacity", "quantity"],
+        shifts_per_day=3,
+    )
+    return {k: v for k, v in results.items() if not v.empty}
+
+
 class BailoutOrchestrator:
 
     async def run(
@@ -29,7 +44,7 @@ class BailoutOrchestrator:
         use_db: bool,
     ) -> dict:
 
-        # ── 1. Load static + dynamic data ─────────────────────────────────────
+        # ── 1. Load data ───────────────────────────────────────────────────────
         db = _load_data()
 
         # ── 2. Build weighted capacity matrix ─────────────────────────────────
@@ -41,31 +56,53 @@ class BailoutOrchestrator:
 
         # ── 3. Track orders ───────────────────────────────────────────────────
         order_tracking = track_orders(db["orders_df"], db["production_df"])
+        db_orders      = extract_pending_orders(order_tracking)
 
-        # ── 4. Resolve orders_df: upload > db ─────────────────────────────────
+        # ── 4. Resolve orders + fallback logic ────────────────────────────────
+        fallback_machines = []   # track máy nào đã fallback sang DB
+
         if file:
-            orders_df = await self._parse_file(file)
-        else:
-            orders_df = extract_pending_orders(order_tracking)
+            uploaded_orders = await self._parse_file(file)
+            results = _run_recommend(machine_ids, uploaded_orders, db, weighted_capacity_matrix)
 
-        # ── 5. Recommend ──────────────────────────────────────────────────────
-        results = recommend_for_machines(
-            machine_ids=machine_ids,
-            orders_df=orders_df,
-            production_df=db["production_df"],
-            mold_spec_df=db["mold_spec_df"],
-            item_spec_df=db["item_spec_df"],
-            weighted_capacity_matrix=weighted_capacity_matrix,
-            criteria=["mold_rank", "etd", "capacity", "quantity"],
-            shifts_per_day=3,
-        )
+            # Máy nào không có gợi ý từ file → fallback sang DB
+            no_match = [m for m in machine_ids if m not in results]
+            if no_match:
+                db_results = _run_recommend(no_match, db_orders, db, weighted_capacity_matrix)
+                results.update(db_results)
+                fallback_machines = [m for m in no_match if m in db_results]  # chỉ những máy DB tìm được
+
+        else:
+            results = _run_recommend(machine_ids, db_orders, db, weighted_capacity_matrix)
+
+        # ── 5. Build system notices ───────────────────────────────────────────
+
+        # Máy nào vẫn không có gợi ý dù đã fallback sang DB
+
+        still_no_match = [m for m in machine_ids if m not in results]
+        system_notices = []
+
+        if fallback_machines:
+            system_notices.append(
+                f"No matching orders from uploaded file for: {', '.join(fallback_machines)}. "
+                "Showing recommendations from database instead."
+            )
+
+        if still_no_match:
+            system_notices.append(
+                f"No compatible orders found for: {', '.join(still_no_match)}. "
+                "Please check tonnage compatibility or expand the order list."
+            )
 
         # ── 6. Generate explanation ───────────────────────────────────────────
+        valid_results = {k: v for k, v in results.items() if v is not None and not v.empty}
+
         output = generate_recommendation_openai(
-            results=results,
+            results=valid_results,
             order_tracking=order_tracking,
             machine_spec_df=db["machine_spec_df"],
             production_df=db["production_df"],
+            system_notices=system_notices,                            # ← truyền vào
         )
 
         return output
@@ -83,7 +120,7 @@ class BailoutOrchestrator:
         if missing:
             raise HTTPException(
                 status_code=422,
-                detail=f"File thiếu cột: {missing}"
+                detail=f"Missing required columns: {missing}"
             )
 
         return df
