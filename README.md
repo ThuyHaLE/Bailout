@@ -160,7 +160,7 @@ React + Vite  →  FastAPI  →  Orchestrator
 | Frontend | React 18, Vite, DM Mono / DM Sans |
 | Backend | Python, FastAPI, uvicorn |
 | Data processing | pandas, openpyxl |
-| LLM | OpenAI GPT-4o / Anthropic Claude (swappable) |
+| LLM | OpenAI GPT-4o |
 | Tunneling (demo) | ngrok |
 
 ---
