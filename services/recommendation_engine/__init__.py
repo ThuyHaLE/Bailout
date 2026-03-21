@@ -1,6 +1,4 @@
 # recommendation_engine/__init__.py
-from services.recommendation_engine.default_capacity  import compute_default_capacity_matrix
-from services.recommendation_engine.historical_capacity import compute_estimated_capacity_matrix
 from services.recommendation_engine.weighted_capacity import compute_weighted_capacity_matrix
 from services.recommendation_engine.priority_matrix import build_priority_matrix
 from services.recommendation_engine.recommender import recommend_for_machine, recommend_for_machines
