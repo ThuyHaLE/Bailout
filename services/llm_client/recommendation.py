@@ -36,12 +36,13 @@ def generate_recommendation_openai(
     order_tracking: pd.DataFrame,
     machine_spec_df: pd.DataFrame,
     production_df: pd.DataFrame,
+    system_notices: list = [],
     model: str = "gpt-4o",
 ) -> dict:
     import openai
 
     today  = production_df['date'].max()
-    prompt = build_prompt(results, order_tracking, machine_spec_df, production_df)
+    prompt = build_prompt(results, order_tracking, machine_spec_df, production_df, system_notices=system_notices)
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     response = client.chat.completions.create(
