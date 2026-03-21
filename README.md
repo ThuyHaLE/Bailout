@@ -80,6 +80,50 @@ The LLM's role is strictly to **explain, not decide** — all ranking and machin
 ![Bailout DB demo](images/Bailout-FromDB.gif)
 
 ---
+
+## Quickstart
+
+### Option A — Run via Google Colab (Recommended)
+
+No local setup needed. Open the notebook and follow the steps:
+
+👉 [Open in Google Colab](https://colab.research.google.com/github/ThuyHaLE/Bailout/blob/main/bailout_demo.ipynb)
+
+**Prerequisites:**
+- A Google account
+- A free ngrok account → get your authtoken at [dashboard.ngrok.com](https://dashboard.ngrok.com/get-started/your-authtoken)
+- An OpenAI API key → [platform.openai.com/api-keys](https://platform.openai.com/api-keys)
+
+The notebook will clone the repo, install dependencies, build the UI, and give you a shareable URL.
+
+---
+
+### Option B — Run locally
+
+**Prerequisites:** Python 3.10+, Node.js 18+
+```bash
+git clone https://github.com/ThuyHaLE/Bailout.git
+cd Bailout 
+
+pip install -r requirements.txt
+
+# Build the control panel
+cd control_panel
+npm install
+npm run build
+cd ..
+
+# Add your OpenAI API key
+cp .env.example .env            # then edit .env
+
+# Start the server
+python main.py
+```
+
+Open [http://localhost:8000](http://localhost:8000) in your browser.
+
+---
+
 ## ✨ Key Features
 
 - **Weighted capacity with time decay** — bridges the gap between spec-based   defaults and actual run history. Production records are bucketed by recency (0–30d, 31–60d, ... >180d) with decaying weights, so the system naturally trusts recent data more and reduces dependence on stale records as production conditions shift over time.
