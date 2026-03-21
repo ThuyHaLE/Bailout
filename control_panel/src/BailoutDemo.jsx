@@ -85,6 +85,9 @@ export default function BailoutDemo() {
     setResultReady(false); 
     try {
       const data = await api.recommend(selectedMachines.map(m => m.machine_id), orderFile, useDbOrders);
+      if (!data || typeof data !== 'object') {
+        throw new Error("Invalid response from server");
+      }
       setResult(data);
       setResultReady(true);  
       setActiveTab("output");
