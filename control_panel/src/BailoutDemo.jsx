@@ -36,6 +36,7 @@ export default function BailoutDemo() {
   const [stepIdx, setStepIdx]                 = useState(0);
   const [result, setResult]                   = useState(null);
   const [error, setError]                     = useState(null);
+  const [resultReady, setResultReady]         = useState(false);
   const fileRef = useRef();
 
   useEffect(() => {
@@ -81,9 +82,11 @@ export default function BailoutDemo() {
   const handleSubmit = async () => {
     if (!canSubmit || loading) return;
     setLoading(true); setResult(null); setError(null);
+    setResultReady(false); 
     try {
       const data = await api.recommend(selectedMachines.map(m => m.machine_id), orderFile, useDbOrders);
       setResult(data);
+      setResultReady(true);  
       setActiveTab("output");
     } catch (err) {
       setError(err.message ?? "Unknown error");
@@ -294,11 +297,11 @@ export default function BailoutDemo() {
             {["input","output","validation"].map(t => (
               <button key={t} className={`tab${activeTab === t ? " on" : ""}`} onClick={() => setActiveTab(t)}>
                 {t.toUpperCase()}
-                {t === "validation" && result && (
+                {t === "validation" && result && resultReady && (
                   <span style={{ marginLeft:5, fontSize:8, padding:"1px 5px", borderRadius:2,
-                    background: result.validation.passed ? "#0D4A32" : "#3D0A0A",
-                    color:      result.validation.passed ? "#22C98A" : "#E24B4A" }}>
-                    {result.validation.passed ? "PASS" : "FAIL"}
+                    background: result.validation?.passed ? "#0D4A32" : "#3D0A0A",
+                    color:      result.validation?.passed ? "#22C98A" : "#E24B4A" }}>
+                    {result.validation?.passed ? "PASS" : "FAIL"}
                   </span>
                 )}
               </button>
@@ -337,12 +340,12 @@ export default function BailoutDemo() {
             )}
 
             {/* ── OUTPUT TAB ── */}
-            {result && activeTab === "output" && (
+            {result && resultReady && activeTab === "output" && (
               <div className="fu" style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
                 <div>
                   <div style={{ fontSize:9, color:"#9A9284", marginBottom:9, letterSpacing:".1em", textTransform:"uppercase" }}>Recommendations</div>
-                  {result.machines.map((m, i) => (
+                  {result.machines?.length > 0 ? result.machines.map((m, i) => (
                     <div key={m.machine_id} className="fu" style={{ animationDelay:`${i * .07}s`,
                       border:`1px solid ${i === 0 ? "#22C98A" : "#222018"}`, borderRadius:8,
                       padding:"13px 14px", marginBottom:7,
@@ -350,22 +353,22 @@ export default function BailoutDemo() {
                       <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:8, flexWrap:"wrap" }}>
                         <span style={{ fontSize:9, color:"#4A4640", width:16 }}>#{i+1}</span>
                         <span style={{ fontFamily:"'DM Sans',sans-serif", fontWeight:600, fontSize:14, color:"#F2EDD8" }}>
-                          {m.top_pick.item_id}
+                          {m.top_pick?.item_id}
                         </span>
-                        <span style={{ fontSize:9, color:"#9A9284" }}>{m.top_pick.item_name}</span>
-                        <span style={{ fontSize:9, color:"#6A6458" }}>{m.top_pick.order_id}</span>
+                        <span style={{ fontSize:9, color:"#9A9284" }}>{m.top_pick?.item_name}</span>
+                        <span style={{ fontSize:9, color:"#6A6458" }}>{m.top_pick?.order_id}</span>
                         <span style={{ fontSize:9, color:"#22C98A", padding:"1px 5px", border:"1px solid #1A4A35", borderRadius:3 }}>
                           {m.machine_id}
                         </span>
-                        <span className="tag" style={{ marginLeft:"auto", background:urgencyBg(m.top_pick.urgency), color:urgencyColor(m.top_pick.urgency) }}>
-                          {m.top_pick.urgency}
+                        <span className="tag" style={{ marginLeft:"auto", background:urgencyBg(m.top_pick?.urgency), color:urgencyColor(m.top_pick?.urgency) }}>
+                          {m.top_pick?.urgency}
                         </span>
                       </div>
                       <div style={{ fontSize:11, color:"#C8C0A8", lineHeight:1.7, fontFamily:"'DM Sans',sans-serif" }}>
-                        {m.top_pick.reason}
+                        {m.top_pick?.reason}
                       </div>
                       <div style={{ fontSize:9, color:"#9A9284", lineHeight:1.65, marginTop:5, fontFamily:"'DM Sans',sans-serif" }}>
-                        {m.top_pick.urgency_reason}
+                        {m.top_pick?.urgency_reason}
                       </div>
                       {m.next_picks?.length > 0 && (
                         <div style={{ marginTop:10, display:"flex", gap:5, flexWrap:"wrap", alignItems:"center" }}>
@@ -376,7 +379,11 @@ export default function BailoutDemo() {
                         </div>
                       )}
                     </div>
-                  ))}
+                  )) : (
+                    <div style={{ padding:"20px 0", color:"#6A6458", fontSize:11, textAlign:"center" }}>
+                      No recommendations available for the selected machines.
+                    </div>
+                  )}
                 </div>
 
                 {/* Summary */}
@@ -416,7 +423,7 @@ export default function BailoutDemo() {
                     <div style={{ display:"flex", gap:16, fontSize:9, color:"#9A9284" }}>
                       <span>{result.usage.model}</span>
                       <span>{result.usage.input_tokens} in / {result.usage.output_tokens} out</span>
-                      <span style={{ color:"#22C98A" }}>${result.usage.total_cost.toFixed(6)}</span>
+                      <span style={{ color:"#22C98A" }}>${result.usage.total_cost?.toFixed(6)}</span>
                     </div>
                   </div>
                 )}
@@ -432,17 +439,17 @@ export default function BailoutDemo() {
             )}
 
             {/* ── VALIDATION TAB ── */}
-            {result && activeTab === "validation" && (
+            {result && resultReady && activeTab === "validation" && (
               <div className="fu">
                 <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:16 }}>
                   <div style={{ fontSize:9, color:"#9A9284", letterSpacing:".1em", textTransform:"uppercase" }}>Validation layer</div>
                   <span style={{ fontSize:9, padding:"2px 7px", borderRadius:3, fontWeight:500,
-                    background: result.validation.passed ? "#0D4A32" : "#3D0A0A",
-                    color:      result.validation.passed ? "#22C98A" : "#E24B4A" }}>
-                    {result.validation.passed ? "ALL CHECKS PASSED" : "CHECKS FAILED"}
+                    background: result.validation?.passed ? "#0D4A32" : "#3D0A0A",
+                    color:      result.validation?.passed ? "#22C98A" : "#E24B4A" }}>
+                    {result.validation?.passed ? "ALL CHECKS PASSED" : "CHECKS FAILED"}
                   </span>
                 </div>
-                {result.validation.checks.map((c,i) => (
+                {result.validation?.checks?.map((c,i) => (
                   <div key={i} className="cr">
                     <span style={{ fontSize:11, color:c.ok ? "#22C98A" : "#E24B4A", marginTop:1, width:14, flexShrink:0 }}>{c.ok ? "✓" : "✗"}</span>
                     <div style={{ flex:1 }}>
