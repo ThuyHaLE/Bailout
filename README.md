@@ -67,8 +67,17 @@ The LLM's role is strictly to **explain, not decide** — all ranking and machin
 
 ---
 
-## 🧠 Demo GIF
+## 🧠 Demo
 
+**Upload file** — select machines, attach a priority order list, get recommendations
+
+![Bailout upload demo](images/Bailout-UserUpload.gif)
+
+---
+
+**From DB** — select machines, pull pending orders directly from production database
+
+![Bailout DB demo](images/Bailout-FromDB.gif)
 
 ---
 ## ✨ Key Features
