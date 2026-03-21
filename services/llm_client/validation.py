@@ -1,20 +1,28 @@
 # services/llm_client/validation.py
 import pandas as pd
-import json
 
-def validate(llm_output: dict, 
-              results: dict, 
-              order_tracking: pd.DataFrame) -> dict:
+def validate(
+    llm_output: dict,
+    results: dict,
+    order_tracking: pd.DataFrame,
+    today: pd.Timestamp,
+) -> dict:
     checks = []
     passed = True
 
-    # Build lookup from results
+    # Build lookup table from results, adding is_overdue
     item_map = {}
     for machine_id, rec_df in results.items():
         if rec_df.empty:
             continue
         for row in rec_df.head(5).to_dict(orient='records'):
-            item_map[row['item_id']] = {**row, 'machine_id': machine_id}
+            etd = pd.to_datetime(row.get('etd'))
+            is_overdue = bool(pd.notna(etd) and etd < today)
+            item_map[row['item_id']] = {
+                **row,
+                'machine_id': machine_id,
+                'is_overdue': is_overdue,
+            }
 
     valid_machine_ids = set(results.keys())
 
@@ -26,6 +34,7 @@ def validate(llm_output: dict,
         machine_id = m.get("machine_id")
         top_pick   = m.get("top_pick", {})
         item_id    = top_pick.get("item_id")
+        urgency    = top_pick.get("urgency")
 
         # 1. machine_id must be valid (appear in results)
         ok = machine_id in valid_machine_ids
@@ -49,7 +58,7 @@ def validate(llm_output: dict,
         })
         if not ok:
             passed = False
-            continue  # skip checks dependent on item_id
+            continue
 
         # 3. machine assignment must match results
         expected_machine = item_map[item_id]['machine_id']
@@ -63,8 +72,7 @@ def validate(llm_output: dict,
         })
         if not ok: passed = False
 
-        # 4. urgency=high if item is in a paused order
-        urgency = top_pick.get("urgency")
+        # 4. urgency=high if order is paused
         if item_id in paused_item_ids:
             ok = urgency == "high"
             checks.append({
@@ -76,7 +84,19 @@ def validate(llm_output: dict,
             })
             if not ok: passed = False
 
-        # 5. urgency enum must be valid
+        # 5. urgency=high if ETD already passed
+        if item_map[item_id]['is_overdue']:
+            ok = urgency == "high"
+            checks.append({
+                "rule":     "urgency_high_for_overdue",
+                "item":     item_id,
+                "expected": f"high (ETD already passed, today={today.date()})",
+                "actual":   urgency,
+                "ok":       ok,
+            })
+            if not ok: passed = False
+
+        # 6. urgency enum must be valid
         ok = urgency in {"high", "medium", "low"}
         checks.append({
             "rule":     "valid_urgency_enum",
@@ -87,7 +107,7 @@ def validate(llm_output: dict,
         })
         if not ok: passed = False
 
-    # 6. top_pick of each machine must be priority=1 in results
+    # 7. top_pick must be priority=1 in results
     for m in llm_output.get("machines", []):
         machine_id = m.get("machine_id")
         item_id    = m.get("top_pick", {}).get("item_id")
@@ -104,7 +124,7 @@ def validate(llm_output: dict,
         })
         if not ok: passed = False
 
-    # 7. warnings must not be null if there are paused orders
+    # 8. warnings must not empty if there are paused orders
     if paused_item_ids:
         has_warnings = bool(llm_output.get("warnings"))
         checks.append({
@@ -118,8 +138,8 @@ def validate(llm_output: dict,
 
     return {"passed": passed, "checks": checks}
 
-def fallback(results: dict, 
-             machine_spec_df: pd.DataFrame) -> dict:
+
+def fallback(results: dict, machine_spec_df: pd.DataFrame) -> dict:
     machines = []
     for machine_id, rec_df in results.items():
         machine_name = machine_spec_df[
@@ -129,19 +149,19 @@ def fallback(results: dict,
 
         top_item = rec_df.iloc[0]['item_id'] if not rec_df.empty else None
         machines.append({
-            "machine_id":   machine_id,
-            "machine_name": machine_name,
+            "machine_id":    machine_id,
+            "machine_name":  machine_name,
             "top_pick": {
-                "item_id":       top_item,
-                "reason":        "LLM parse error — fallback to system recommendation",
-                "urgency":       "low",
+                "item_id":        top_item,
+                "reason":         "LLM parse error — fallback to system recommendation",
+                "urgency":        "low",
                 "urgency_reason": "N/A",
             },
             "next_picks": rec_df.iloc[1:3]['item_id'].tolist() if len(rec_df) > 1 else [],
         })
 
     return {
-        "machines":  machines,
-        "warnings":  ["LLM response could not be parsed — showing system recommendation only."],
-        "summary":   "System could not generate explanation. The results below are computed directly by the system.",
+        "machines": machines,
+        "warnings": ["LLM response could not be parsed — showing system recommendation only."],
+        "summary":  "System could not generate explanation. Results below are computed directly by the system.",
     }

@@ -9,15 +9,39 @@ from services.llm_client.validation import validate, fallback
 
 load_dotenv()
 
+OPENAI_PRICING = {
+    "gpt-4o":      {"input": 2.50,  "output": 10.00},
+    "gpt-4o-mini": {"input": 0.15,  "output": 0.60},
+    "o3-mini":     {"input": 1.10,  "output": 4.40},
+}
+
+def _compute_cost(model: str, 
+                  input_tokens: int, 
+                  output_tokens: int, 
+                  pricing: dict) -> dict:
+    price = pricing.get(model, {"input": 0, "output": 0})
+    input_cost  = input_tokens  / 1_000_000 * price["input"]
+    output_cost = output_tokens / 1_000_000 * price["output"]
+    return {
+        "model":         model,
+        "input_tokens":  input_tokens,
+        "output_tokens": output_tokens,
+        "input_cost":    round(input_cost,  6),
+        "output_cost":   round(output_cost, 6),
+        "total_cost":    round(input_cost + output_cost, 6),
+    }
+
 def generate_recommendation_openai(
     results: dict,
     order_tracking: pd.DataFrame,
     machine_spec_df: pd.DataFrame,
+    production_df: pd.DataFrame,
     model: str = "gpt-4o",
 ) -> dict:
     import openai
 
-    prompt = build_prompt(results, order_tracking, machine_spec_df)
+    today  = production_df['date'].max()
+    prompt = build_prompt(results, order_tracking, machine_spec_df, production_df)
     client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     response = client.chat.completions.create(
@@ -27,16 +51,22 @@ def generate_recommendation_openai(
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = response.choices[0].message.content.strip()
+    raw   = response.choices[0].message.content.strip()
+    usage = _compute_cost(
+        model=model,
+        input_tokens=response.usage.prompt_tokens,
+        output_tokens=response.usage.completion_tokens,
+        pricing=OPENAI_PRICING,
+    )
 
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError:
-        return fallback(results, machine_spec_df)
+        return {**fallback(results, machine_spec_df), "usage": usage}
 
-    validation = validate(parsed, results, order_tracking)
+    validation = validate(parsed, results, order_tracking, today=today)
 
     if not validation["passed"]:
-        return {**fallback(results, machine_spec_df), "validation": validation}
+        return {**fallback(results, machine_spec_df), "validation": validation, "usage": usage}
 
-    return {**parsed, "validation": validation}
+    return {**parsed, "validation": validation, "usage": usage}
