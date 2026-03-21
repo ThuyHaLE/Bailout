@@ -9,7 +9,8 @@ def build_prompt(
     production_df: pd.DataFrame,
 ) -> str:
 
-    today     = production_df['date'].max()
+    # Today = max date in production_df
+    today = production_df['date'].max()
     today_str = today.strftime("%Y-%m-%d")
 
     machines_context = machine_spec_df[
@@ -18,28 +19,18 @@ def build_prompt(
 
     paused_orders = order_tracking[
         order_tracking['status'] == 'paused'
-    ][['order_id', 'item_id', 'item_name', 'etd', 'remaining']].to_dict(orient='records')
-
-    # Lookup order_id + item_name từ order_tracking
-    order_lookup = order_tracking.set_index('item_id')[['order_id', 'item_name']].to_dict(orient='index')
+    ][['order_id', 'item_id', 'etd', 'remaining']].to_dict(orient='records')
 
     recommendations = {}
     for machine_id, rec_df in results.items():
         if rec_df.empty:
             recommendations[machine_id] = []
             continue
-
-        rows = []
-        for row in rec_df.head(5).to_dict(orient='records'):
-            item_id = row['item_id']
-            meta    = order_lookup.get(item_id, {})
-            rows.append({
-                **row,
-                "order_id":  meta.get('order_id', ''),
-                "item_name": meta.get('item_name', ''),
-                "etd":       str(row['etd']),
-            })
-        recommendations[machine_id] = rows
+        recommendations[machine_id] = (
+            rec_df.head(5)
+            .assign(etd=rec_df['etd'].astype(str))
+            .to_dict(orient='records')
+        )
 
     return f"""
 You are a production scheduling assistant for an injection molding plastic factory.
@@ -67,8 +58,6 @@ Return the following JSON, with no text outside of the JSON:
       "machine_name": "...",
       "top_pick": {{
         "item_id": "...",
-        "item_name": "...",
-        "order_id": "...",
         "reason": "explanation of why this is the best choice based on ETD, capacity, or machine history",
         "urgency": "high|medium|low",
         "urgency_reason": "reason for the urgency level"
@@ -81,11 +70,10 @@ Return the following JSON, with no text outside of the JSON:
 }}
 
 Rules:
-- urgency=high: ETD within 3 days from {today_str}, OR order is paused, OR ETD already passed
+- urgency=high: ETD within 3 days from {today_str} or order is paused
 - urgency=medium: ETD within 7 days from {today_str}
 - urgency=low: ETD beyond 7 days from {today_str}
-- If ETD has already passed, urgency_reason must mention it is overdue
 - reason must mention ETD, capacity, or machine history
-- warnings only for paused orders with approaching ETD or already overdue
-- DO NOT change machine_id, item_id, item_name, or order_id compared to the input
+- warnings only for paused orders with approaching ETD
+- DO NOT change machine_id or item_id compared to the input
 """.strip()
