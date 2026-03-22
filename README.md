@@ -168,12 +168,7 @@ React + Vite  →  FastAPI  →  Orchestrator
 ---
 
 ## 🚧 Future Improvements
-
-- **Real-time data feed** — replace Excel uploads with a live connection to MES or ERP systems so production records are always current
-- **Multi-shift planning** — extend recommendations beyond the next idle machine to a full shift schedule across all machines
-- **Feedback loop** — allow planners to accept or reject recommendations, feeding that signal back to improve future capacity weights
-- **Domain fine-tuning** — adapt LLM explanations to factory-specific vocabulary and product naming conventions
-- **Multi-tenant support** — extend to multiple production lines or factories with separate data and configuration per site
+With more time, Bailout can become a **higher-level planner** for **all machines**. It can incorporate **additional constraints** and provide **multiple scenarios** to support better decisions.  I also aim to improve the LLM to reduce hallucinations and provide more reliable explanations from the data.
 
 ---
 
